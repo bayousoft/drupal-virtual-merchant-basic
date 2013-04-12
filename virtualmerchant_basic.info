@@ -1,0 +1,5 @@
+name = Virtual Merchant Basic
+description = Accept payments using the Virtual Merchant API.
+package = Virtual Merchant
+core = 7.x
+files[] = virtualmerchant_basic.module

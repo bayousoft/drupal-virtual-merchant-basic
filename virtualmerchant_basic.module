@@ -1,0 +1,179 @@
+<?php
+
+function virtualmerchant_basic_menu() {
+  $items = array();
+  $items['virtualmerchant_basic/form'] = array(
+    'title' => t('Payment Form'),
+    'page callback' => 'virtualmerchant_basic',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK,
+  );
+  $items['virtualmerchant_basic/receipt'] = array(
+    'page callback' => 'virtualmerchant_basic_receipt',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK
+    );
+  $items['virtualmerchant_basic/error'] = array(
+    'page callback' => 'virtualmerchant_basic_error',
+    'access arguments' => array('access content'),
+    'type' => MENU_CALLBACK
+    );			
+  return $items;
+}
+ 
+function virtualmerchant_basic_receipt() {
+	if (isset($_GET['ssl_result'])) {
+		$ssl_result=$_GET['ssl_result'];
+	} else {
+		$ssl_result = 1;	
+	}
+	
+	if ($ssl_result == 0 )
+	{ 
+		return "<h1 class='title'>Payment Received</h1><div>Thank you for your payment.</div>";
+	}
+	else if ($ssl_result==1)
+	{ 
+		return "<h1 class='title'>Payment Error</h1><div>Sorry, there was an issue processing your credit card. <a href='/virtualmerchant_basic/form'>Try Again</a></div>";
+	}
+}
+ 
+function virtualmerchant_basic_error() {
+	$ssl_error=$_GET['errorCode'];
+	if ($ssl_error > 0)
+	{return "<h1 class='title'>Error</h1><div>An error occured while processing your credit card.  <a href='/virtualmerchant_basic/form'>Try Again</a></div>";}
+}
+
+function virtualmerchant_basic() {
+  return drupal_get_form('virtualmerchant_basic_form');
+}
+
+function virtualmerchant_basic_form($form_state) {
+
+  $form['first'] = array(
+    '#type' => 'textfield',
+    '#title' => t('First name'),
+		'#default_value' => '',
+    '#required' => TRUE,
+    '#description' => "Please enter your first name.",
+  );
+  $form['last'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Last name'),
+    '#required' => TRUE,		
+    '#description' => "Please enter your last name.",		
+  );
+  $form['email'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Email'),
+    '#required' => TRUE,		
+    '#description' => "Please enter your email address.",		
+  );	
+  $form['amount'] = array(
+    '#type' => 'textfield',
+    '#title' => "Donation amount",
+    '#required' => TRUE,		
+    '#description' => "Please enter your donation amount.",
+  );
+  $form['cc_number'] = array(
+    '#type' => 'textfield',
+    '#title' => "Credit card number",
+    '#required' => TRUE,		
+    '#description' => "Please enter your credit card number.",
+  );
+  $form['cc_exp'] = array(
+    '#type' => 'textfield',
+    '#title' => "Credit card expiration",
+    '#required' => TRUE,		
+    '#description' => "Please enter your credit card expiration date in MMYY format.",
+  ); 	  
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => 'Submit',
+  );
+  return $form;
+}
+
+function virtualmerchant_basic_form_validate($form, &$form_state) {
+  $amount = $form_state['values']['amount'];
+  if (!is_numeric($amount)) {
+    form_set_error('amount', 'Your payment amount is not numeric.  Please remove any special characters including the dollar sign ($).');
+  }
+  $cc_number = $form_state['values']['cc_number'];
+  if (!is_numeric($cc_number)) {
+    form_set_error('cc_number', 'Your credit card number is not valid.');
+  }	
+  $cc_exp = $form_state['values']['cc_exp'];
+  if (!is_numeric($cc_exp)) {
+    form_set_error('cc_exp', 'Enter your credit card expiration in MMYY format.');
+  }
+}
+
+// Adds a submit handler/function to our form to send a successful 
+// completion message to the screen.
+
+
+function virtualmerchant_basic_form_submit($form, &$form_state) {
+  //drupal_set_message($form_state['values']['last']);
+	
+	// Set data values
+	$ssl_transaction_type = 'ccsale';
+	$ssl_first_name = $form_state['values']['first'];
+	$ssl_last_name = $form_state['values']['last'];
+	$ssl_email = $form_state['values']['email'];	
+	$ssl_invoice_number = '';
+	$ssl_amount = $form_state['values']['amount'];
+	$ssl_card_number = $form_state['values']['cc_number'];
+	$ssl_exp_date = $form_state['values']['cc_exp'];
+	
+	//extract data from the post
+	extract($_POST);
+	//set POST variables
+	$url = 'XXXX'; //https://demo.myvirtualmerchant.com/VirtualMerchantDemo/process.do
+	//Additional fields can be added as necessary to support custom fields or required fields configured in the Virtual Merchant terminal
+	$fields = array(
+	'ssl_merchant_id'=>'XXXX',
+	'ssl_user_id'=>'XXXX',
+	'ssl_pin'=>'XXXX',
+	'ssl_show_form'=>'false',
+	'ssl_result_format'=>'html',
+	'ssl_test_mode'=>'false',
+	'ssl_receipt_apprvl_method'=>'redg',
+	'ssl_error_url'=>'XXXX',
+	'ssl_receipt_apprvl_get_url'=>'XXXX',
+	'ssl_transaction_type'=>urlencode($ssl_transaction_type),
+	'ssl_first_name'=>urlencode($ssl_first_name),
+	'ssl_last_name'=>urlencode($ssl_last_name),
+	'ssl_email'=>urlencode($ssl_email),		
+	'ssl_amount'=>urlencode($ssl_amount),
+	'ssl_card_number'=>urlencode($ssl_card_number),
+	'ssl_exp_date'=>urlencode($ssl_exp_date),
+	//'ssl_cvv2cvc2_indicator'=>urlencode($ssl_cvv2cvc2_indicator),
+	//'ssl_cvv2cvc2'=>urlencode($ssl_cvv2cvc2),
+	//'ssl_customer_code'=>urlencode($ssl_customer_code),
+	'ssl_invoice_number'=>urlencode($ssl_invoice_number),
+	);
+	//initialize the post string variable
+	$fields_string = '';
+	//build the post string
+	foreach($fields as $key=>$value) { $fields_string .=$key.'='.$value.'&'; }
+	rtrim($fields_string, "&");
+	//open curl session
+	$ch = curl_init();
+	//begin seting curl options
+	//set URL
+	curl_setopt($ch, CURLOPT_URL, $url);
+	//set method
+	curl_setopt($ch, CURLOPT_POST, 1);
+	//set post data string
+	curl_setopt($ch, CURLOPT_POSTFIELDS, $fields_string);
+	//these two options are frequently necessary to avoid SSL errors with PHP
+	curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+	curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+	//perform the curl post and store the result
+	$result = curl_exec($ch);
+	//close the curl session
+	curl_close($ch);
+	
+	$form_state['rebuild'] = TRUE;
+}
